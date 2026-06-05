@@ -424,6 +424,6 @@ export function formatSelfUpdateMessage(result) {
   }
   return [
     `[perfsight] Update available: ${result.currentVersion} -> ${result.latestVersion}`,
-    `[perfsight] Upgrade: ${formatUpgradeCommand(result.packageName || '@perfsight/cli', result.channel)}`
+    `[perfsight] Upgrade: ${formatUpgradeCommand(result.packageName || '@sireai/perfsight', result.channel)}`
   ].join('\n');
 }

@@ -38,13 +38,13 @@ npm run text -- com.mi.car.mobile
 发布后运行：
 
 ```bash
-npx @perfsight/cli text com.mi.car.mobile
+npx @sireai/perfsight text com.mi.car.mobile
 ```
 
 也可以全局安装：
 
 ```bash
-npm install -g @perfsight/cli
+npm install -g @sireai/perfsight
 perfsight text com.mi.car.mobile
 ```
 
@@ -148,7 +148,7 @@ perfsight upgrade
 
 说明：
 
-- 自动升级仅支持全局安装场景：`npm install -g @perfsight/cli`
+- 自动升级仅支持全局安装场景：`npm install -g @sireai/perfsight`
 - 如果当前是源码仓库或 `npx` 使用方式，CLI 会给出手动升级命令
 
 指定网页端口：

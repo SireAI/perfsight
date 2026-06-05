@@ -1,5 +1,5 @@
 {
-  "name": "@perfsight/cli",
+  "name": "@sireai/perfsight",
   "version": "0.1.0",
   "description": "Android app CPU, PSS, leak watermark, and HPROF capture watcher over adb.",
   "repository": {

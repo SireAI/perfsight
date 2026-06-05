@@ -19,8 +19,8 @@ test('compareVersions handles snapshot prerelease ordering', () => {
 });
 
 test('formatUpgradeCommand returns latest and snapshot commands', () => {
-  assert.equal(formatUpgradeCommand('@perfsight/cli', 'latest'), 'npm install -g @perfsight/cli@latest');
-  assert.equal(formatUpgradeCommand('@perfsight/cli', 'snapshot'), 'npm install -g @perfsight/cli@snapshot');
+  assert.equal(formatUpgradeCommand('@sireai/perfsight', 'latest'), 'npm install -g @sireai/perfsight@latest');
+  assert.equal(formatUpgradeCommand('@sireai/perfsight', 'snapshot'), 'npm install -g @sireai/perfsight@snapshot');
 });
 
 test('formatSelfUpdateMessage renders upgrade guidance', () => {
@@ -28,9 +28,9 @@ test('formatSelfUpdateMessage renders upgrade guidance', () => {
     currentVersion: '0.1.0',
     latestVersion: '0.1.1',
     updateAvailable: true,
-    packageName: '@perfsight/cli',
+    packageName: '@sireai/perfsight',
     channel: 'latest'
   });
   assert.match(message, /Update available: 0.1.0 -> 0.1.1/);
-  assert.match(message, /npm install -g @perfsight\/cli@latest/);
+  assert.match(message, /npm install -g @sireai\/perfsight@latest/);
 });
