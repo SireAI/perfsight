@@ -91,7 +91,7 @@ export function renderLivePage() {
       display: flex;
       justify-content: space-between;
       gap: 12px;
-      align-items: baseline;
+      align-items: flex-start;
       flex-wrap: wrap;
     }
     .title {
@@ -104,6 +104,32 @@ export function renderLivePage() {
     .sub {
       color: var(--muted);
       font-size: 14px;
+      margin-top: 8px;
+    }
+    .hero-meta {
+      display: grid;
+      gap: 6px;
+      justify-items: end;
+      text-align: right;
+    }
+    .hero-meta-label {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .hero-meta-value {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 500;
+      overflow-wrap: anywhere;
+    }
+    .hero-meta-value a {
+      color: #b9d2ff;
+      text-decoration: none;
+    }
+    .hero-meta-value a:hover {
+      text-decoration: underline;
     }
     .content {
       display: grid;
@@ -177,6 +203,19 @@ export function renderLivePage() {
       font-size: 16px;
       letter-spacing: 0.02em;
     }
+    .info-card {
+      padding: 16px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      display: grid;
+      gap: 12px;
+    }
+    .device-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px 18px;
+    }
     .config-grid {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -217,6 +256,9 @@ export function renderLivePage() {
       display: grid;
       gap: 4px;
     }
+    .state-item.hidden {
+      display: none;
+    }
     .state-item span {
       color: var(--muted);
       font-size: 12px;
@@ -228,6 +270,25 @@ export function renderLivePage() {
       font-weight: 600;
       font-size: 14px;
       overflow-wrap: anywhere;
+    }
+    .state-block {
+      display: grid;
+      gap: 14px;
+    }
+    .state-section {
+      display: grid;
+      gap: 10px;
+      min-width: 0;
+    }
+    .state-section + .state-section {
+      padding-top: 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .state-section-title {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
     }
     .chart-wrap {
       padding: 18px;
@@ -321,6 +382,14 @@ export function renderLivePage() {
       align-items: center;
       gap: 8px;
       margin-left: auto;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .recording-timer {
+      color: var(--warn);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
     }
     .action-button {
       border: 1px solid rgba(64, 196, 170, 0.32);
@@ -512,6 +581,7 @@ export function renderLivePage() {
     }
     @media (max-width: 960px) {
       .summary-grid { grid-template-columns: 1fr; }
+      .device-grid { grid-template-columns: 1fr; }
       .config-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .state-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .content { grid-template-columns: 1fr; }
@@ -520,6 +590,10 @@ export function renderLivePage() {
     @media (max-width: 640px) {
       .config-grid { grid-template-columns: 1fr; }
       .state-grid { grid-template-columns: 1fr; }
+      .hero-meta {
+        justify-items: start;
+        text-align: left;
+      }
     }
   </style>
 </head>
@@ -529,6 +603,11 @@ export function renderLivePage() {
       <div class="hero-top">
         <div>
           <h1 class="title">PerfSight</h1>
+          <div class="sub">Performance and leak monitoring for Android endurance runs</div>
+        </div>
+        <div class="hero-meta">
+          <div class="hero-meta-label">Support</div>
+          <div class="hero-meta-value"><a href="mailto:wangkai39@xiaomi.com">wangkai39@xiaomi.com</a></div>
         </div>
       </div>
     </section>
@@ -542,29 +621,41 @@ export function renderLivePage() {
       </div>
       <div class="summary-grid">
         <div class="summary-block">
-          <h2>Config Session</h2>
-          <div class="config-grid">
-            <div class="config-item"><span>Package</span><strong id="packageText">-</strong></div>
-            <div class="config-item"><span>Device</span><strong id="deviceModelText">-</strong></div>
-            <div class="config-item"><span>Android</span><strong id="androidVersionText">-</strong></div>
-            <div class="config-item"><span>Max Java Heap</span><strong id="appMaxHeapText">-</strong></div>
-            <div class="config-item"><span>Sampling</span><strong id="samplingText">-</strong></div>
-            <div class="config-item"><span>Samples</span><strong id="sampleCountText">-</strong></div>
-            <div class="config-item"><span>Source</span><strong id="sourceText">-</strong></div>
-            <div class="config-item"><span>Debuggable</span><strong id="debuggableText">-</strong></div>
-            <div class="config-item"><span>Profileable</span><strong id="profileableText">-</strong></div>
-            <div class="config-item"><span>Root</span><strong id="rootedText">-</strong></div>
-            <div class="config-item"><span>Notify</span><strong id="notifyText">-</strong></div>
+          <h2>Device Info</h2>
+          <div class="info-card">
+            <div class="device-grid">
+              <div class="config-item"><span>Device</span><strong id="deviceModelText">-</strong></div>
+              <div class="config-item"><span>Android</span><strong id="androidVersionText">-</strong></div>
+              <div class="config-item"><span>Serial</span><strong id="serialText">-</strong></div>
+              <div class="config-item"><span>Root Access</span><strong id="rootedText">-</strong></div>
+              <div class="config-item"><span>CPU Cores</span><strong id="cpuCoresText">-</strong></div>
+              <div class="config-item"><span>CPU Frequency</span><strong id="cpuFrequencyText">-</strong></div>
+            </div>
           </div>
         </div>
         <div class="summary-block">
           <h2>Current State</h2>
           <div class="state-card">
-            <div class="status"><span class="pulse"></span><span id="statusText">waiting</span></div>
-            <div class="state-grid">
-              <div class="state-item"><span>Last</span><strong id="lastTs">-</strong></div>
-              <div class="state-item"><span>PIDs</span><strong id="pidText">-</strong></div>
-              <div class="state-item"><span>Note</span><strong id="noteText">-</strong></div>
+            <div class="state-block">
+              <div class="status"><span class="pulse"></span><span id="statusText">waiting</span></div>
+              <div class="state-section">
+                <div class="state-section-title">Runtime</div>
+                <div class="state-grid">
+                  <div class="state-item"><span>App</span><strong id="packageText">-</strong></div>
+                  <div class="state-item"><span>Last</span><strong id="lastTs">-</strong></div>
+                  <div class="state-item"><span>PIDs</span><strong id="pidText">-</strong></div>
+                  <div class="state-item"><span>CPU Source</span><strong id="sourceText">-</strong></div>
+                  <div class="state-item" id="noteItem"><span>Note</span><strong id="noteText">-</strong></div>
+                </div>
+              </div>
+              <div class="state-section">
+                <div class="state-section-title">Session</div>
+                <div class="state-grid">
+                  <div class="state-item"><span>Max Java Heap</span><strong id="appMaxHeapText">-</strong></div>
+                  <div class="state-item"><span>Debuggable</span><strong id="debuggableText">-</strong></div>
+                  <div class="state-item"><span>Profileable</span><strong id="profileableText">-</strong></div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -594,8 +685,16 @@ export function renderLivePage() {
         </div>
         <div class="chart-grid">
           <div class="mini-chart">
-            <div class="mini-head"><span>App CPU</span><strong id="cpuChartLabel">-</strong></div>
+            <div class="mini-head">
+              <span>App CPU</span>
+              <strong id="cpuChartLabel">-</strong>
+              <div class="mini-head-actions">
+                <span class="recording-timer hidden" id="cpuProfileTimer">Recording 00:00</span>
+                <button class="action-button" id="cpuProfileButton" type="button">Start Recording</button>
+              </div>
+            </div>
             <canvas id="cpuCanvas"></canvas>
+            <div class="capability-hint hidden" id="cpuProfileCapabilityHint"></div>
           </div>
           <div class="mini-chart">
             <div class="mini-head">
@@ -649,7 +748,11 @@ export function renderLivePage() {
     const windowControls = document.getElementById('windowControls');
     const cpuScaleControls = document.getElementById('cpuScaleControls');
     const connectionBanner = document.getElementById('connectionBanner');
+    const noteItem = document.getElementById('noteItem');
+    const cpuProfileTimer = document.getElementById('cpuProfileTimer');
     const dumpButtonDefaultText = 'Dump Memory';
+    const cpuProfileButtonStartText = 'Start Recording';
+    const cpuProfileButtonStopText = 'Stop Recording';
 
     let currentPayload = null;
     let currentSamples = [];
@@ -660,6 +763,9 @@ export function renderLivePage() {
     let pollTimer = null;
     let dumpInFlight = false;
     let manualDumpMessage = '';
+    let cpuProfileInFlight = false;
+    let cpuProfileMessage = '';
+    let cpuProfileTimerHandle = null;
     let notificationsReady = false;
     let lastSeenDumpKey = null;
     let lastSeenDumpReady = false;
@@ -667,6 +773,15 @@ export function renderLivePage() {
     let lastNotificationSentAt = '';
     function setText(id, value) {
       document.getElementById(id).textContent = value === null || value === undefined || value === '' ? '-' : String(value);
+    }
+
+    function updateNote(value) {
+      const normalized = value === null || value === undefined ? '' : String(value).trim();
+      const visible = normalized !== '' && normalized !== '-';
+      if (noteItem) {
+        noteItem.classList.toggle('hidden', !visible);
+      }
+      setText('noteText', visible ? normalized : '-');
     }
 
     function formatNumber(value, suffix) {
@@ -690,6 +805,11 @@ export function renderLivePage() {
       if (!payload || payload.manual_dump_enabled) return '';
       if (payload.manual_dump_reason === 'leak capture disabled') return '';
       return 'Leak monitoring stays on, but HPROF dump is unavailable for this app. Enable debuggable support or use a rooted device to capture heap dumps.';
+    }
+
+    function cpuProfileCapabilitySummary(payload) {
+      if (!payload || payload.manual_cpu_profile_enabled) return '';
+      return payload.manual_cpu_profile_reason || 'CPU recording unavailable';
     }
 
     function updateConnectionBanner(payload) {
@@ -979,6 +1099,53 @@ export function renderLivePage() {
       });
     }
 
+    function cpuProfileRanges(samples) {
+      const payload = currentPayload || {};
+      const history = Array.isArray(payload.cpu_profile_history) ? payload.cpu_profile_history : [];
+      const completed = history.slice(0, 4).map(function (entry) {
+        return {
+          start: isoToUnix(entry.started_at_iso || entry.timestamp_iso),
+          end: isoToUnix(entry.ended_at_iso),
+          active: false
+        };
+      }).filter(function (entry) {
+        return entry.start > 0 && entry.end > entry.start;
+      });
+      if (payload.cpu_profile_in_progress) {
+        completed.push({
+          start: isoToUnix(payload.cpu_profile_in_progress_started_at),
+          end: samples.length ? samples[samples.length - 1].timestamp : (Date.now() / 1000),
+          active: true
+        });
+      }
+      if (!samples.length) return completed;
+      const minTs = samples[0].timestamp;
+      const maxTs = samples[samples.length - 1].timestamp;
+      return completed.filter(function (entry) {
+        return entry.end >= minTs && entry.start <= maxTs;
+      });
+    }
+
+    function drawProfileRanges(ctx, samples, left, top, width, height) {
+      if (!samples.length) return;
+      const ranges = cpuProfileRanges(samples);
+      if (!ranges.length) return;
+      const minTs = samples[0].timestamp;
+      const maxTs = samples[samples.length - 1].timestamp;
+      const span = Math.max(maxTs - minTs, 1e-6);
+      ranges.forEach(function (range) {
+        const startRatio = Math.max(0, Math.min(1, (range.start - minTs) / span));
+        const endRatio = Math.max(0, Math.min(1, (range.end - minTs) / span));
+        const x = left + startRatio * width;
+        const w = Math.max(2, (endRatio - startRatio) * width);
+        ctx.fillStyle = range.active ? 'rgba(255, 209, 102, 0.20)' : 'rgba(143, 184, 255, 0.12)';
+        ctx.fillRect(x, top, w, height);
+        ctx.strokeStyle = range.active ? 'rgba(255, 209, 102, 0.58)' : 'rgba(143, 184, 255, 0.32)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x + 0.5, top + 0.5, Math.max(1, w - 1), Math.max(1, height - 1));
+      });
+    }
+
     function drawSingleChart(canvas, ctx, samples, selector, color, formatter, labelNode, mode, suffix) {
       resizeCanvas(canvas, ctx);
       const rect = canvas.getBoundingClientRect();
@@ -993,6 +1160,9 @@ export function renderLivePage() {
       const scale = computeScale(values, mode);
       drawYGrid(ctx, left, top, plotWidth, plotHeight, scale.ticks, scale.min, scale.max, suffix);
       drawTimeAxis(ctx, left, top, plotWidth, plotHeight, samples);
+      if (mode === 'cpu') {
+        drawProfileRanges(ctx, samples, left, top, plotWidth, plotHeight);
+      }
       drawLine(ctx, values, color, scale.min, scale.max, left, top, plotWidth, plotHeight);
       const focusIndex = hoverSampleIndex === null ? samples.length - 1 : Math.min(hoverSampleIndex, samples.length - 1);
       const focusSample = samples[focusIndex];
@@ -1123,6 +1293,45 @@ export function renderLivePage() {
       setText('dumpStatusText', status || 'idle');
     }
 
+    function setCpuProfileLoading(active) {
+      cpuProfileInFlight = active;
+      const button = document.getElementById('cpuProfileButton');
+      button.textContent = active
+        ? 'Loading...'
+        : (currentPayload && currentPayload.cpu_profile_in_progress ? cpuProfileButtonStopText : cpuProfileButtonStartText);
+      button.disabled = active || !(currentPayload && currentPayload.manual_cpu_profile_enabled);
+    }
+
+    function formatElapsedDuration(totalSeconds) {
+      const safe = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+      const minutes = Math.floor(safe / 60);
+      const seconds = safe % 60;
+      return String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+    }
+
+    function refreshCpuProfileTimer() {
+      const startedAt = currentPayload && currentPayload.cpu_profile_in_progress_started_at;
+      if (!(currentPayload && currentPayload.cpu_profile_in_progress && startedAt)) {
+        cpuProfileTimer.textContent = 'Recording 00:00';
+        cpuProfileTimer.classList.add('hidden');
+        return;
+      }
+      const startedMs = new Date(startedAt).getTime();
+      const elapsedSec = Number.isFinite(startedMs) ? (Date.now() - startedMs) / 1000 : 0;
+      cpuProfileTimer.textContent = 'Recording ' + formatElapsedDuration(elapsedSec);
+      cpuProfileTimer.classList.remove('hidden');
+    }
+
+    function ensureCpuProfileTimerLoop() {
+      if (cpuProfileTimerHandle !== null) return;
+      cpuProfileTimerHandle = window.setInterval(refreshCpuProfileTimer, 500);
+    }
+
+    function syncCpuProfileLoadingFromPayload(payload) {
+      if (cpuProfileInFlight) return;
+      setCpuProfileLoading(false);
+    }
+
     function syncDumpLoadingFromPayload(payload) {
       if (payload && payload.dump_in_progress) {
         setDumpLoading(true, resolveDumpStatusText(payload));
@@ -1172,30 +1381,40 @@ export function renderLivePage() {
       currentPayload = payload;
       currentSamples = payload && Array.isArray(payload.samples) ? payload.samples : [];
       syncDumpLoadingFromPayload(payload);
+      syncCpuProfileLoadingFromPayload(payload);
       updateConnectionBanner(payload);
       const latest = payload ? payload.latest : null;
       const deviceInfo = payload && payload.device_info ? payload.device_info : {};
       setText('packageText', payload ? payload.package : '-');
       setText('deviceModelText', deviceInfo.model || '-');
       setText('androidVersionText', deviceInfo.android || '-');
+      setText('serialText', deviceInfo.serial || '-');
+      setText('cpuCoresText', deviceInfo.cpu_cores ? String(deviceInfo.cpu_cores) : '-');
+      setText('cpuFrequencyText', deviceInfo.cpu_frequency || '-');
       setText('appMaxHeapText', payload && payload.app_max_java_heap_mb !== null && payload.app_max_java_heap_mb !== undefined ? payload.app_max_java_heap_mb.toFixed(2) + ' MB' : '-');
-      setText('samplingText', payload ? payload.interval_sec.toFixed(2) + 's' : '-');
-      setText('sampleCountText', currentSamples.length + ' pts');
       setText('debuggableText', payload && payload.debuggable ? 'supported' : 'unsupported');
       setText('profileableText', payload && payload.profileable ? 'supported' : 'unsupported');
       setText('rootedText', payload && payload.rooted ? 'supported' : 'unsupported');
-      setText('notifyText', notificationStatusText());
       manualDumpButton.disabled = !(payload && payload.manual_dump_enabled) || dumpInFlight;
+      const cpuProfileButton = document.getElementById('cpuProfileButton');
+      cpuProfileButton.disabled = !(payload && payload.manual_cpu_profile_enabled) || cpuProfileInFlight;
+      cpuProfileButton.textContent = payload && payload.cpu_profile_in_progress ? cpuProfileButtonStopText : cpuProfileButtonStartText;
+      refreshCpuProfileTimer();
       const capabilityHint = dumpCapabilitySummary(payload);
       dumpCapabilityHint.textContent = capabilityHint;
       dumpCapabilityHint.classList.toggle('hidden', !capabilityHint);
+      const cpuProfileHint = document.getElementById('cpuProfileCapabilityHint');
+      const cpuProfileReason = cpuProfileCapabilitySummary(payload);
+      cpuProfileHint.textContent = cpuProfileReason;
+      cpuProfileHint.classList.toggle('hidden', !cpuProfileReason);
       if (payload && payload.connection_status === 'disconnected') {
         manualDumpButton.disabled = true;
+        cpuProfileButton.disabled = true;
         setText('statusText', 'disconnected');
         setText('lastTs', '-');
         setText('pidText', '-');
         setText('sourceText', '-');
-        setText('noteText', payload.connection_note || 'waiting for device reconnect');
+        updateNote(payload.connection_note || 'waiting for device reconnect');
         updateDetails();
         return;
       }
@@ -1204,7 +1423,7 @@ export function renderLivePage() {
         setText('lastTs', '-');
         setText('pidText', '-');
         setText('sourceText', '-');
-        setText('noteText', manualDumpMessage || '-');
+        updateNote(manualDumpMessage || '');
         updateDetails();
         drawCharts([]);
         return;
@@ -1213,7 +1432,7 @@ export function renderLivePage() {
       setText('lastTs', formatClock(latest.timestamp || latest.timestamp_iso));
       setText('pidText', latest.pids && latest.pids.length ? latest.pids.join(', ') : '-');
       setText('sourceText', latest.cpu_source || '-');
-      setText('noteText', manualDumpMessage || latest.note || '-');
+      updateNote(manualDumpMessage || latest.note || '');
       drawCharts(currentSamples);
       updateDetails();
     }
@@ -1237,8 +1456,49 @@ export function renderLivePage() {
       } catch (error) {
         manualDumpMessage = 'manual dump failed: ' + String(error);
         setDumpLoading(false, 'failed');
-        setText('noteText', manualDumpMessage);
+        updateNote(manualDumpMessage);
       }
+    }
+
+    async function triggerCpuProfile() {
+      const cpuProfileButton = document.getElementById('cpuProfileButton');
+      if (cpuProfileButton.disabled) return;
+      setCpuProfileLoading(true);
+      try {
+        const inProgress = Boolean(currentPayload && currentPayload.cpu_profile_in_progress);
+        const response = await fetch(inProgress ? '/api/cpu-profile/stop' : '/api/cpu-profile/start', {
+          method: 'POST',
+          cache: 'no-store'
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) throw new Error(payload.error || 'cpu profile failed');
+        if (inProgress) {
+          cpuProfileMessage = payload.capture.gecko_profile_name
+            ? 'cpu profile ready: ' + payload.capture.gecko_profile_name
+            : 'cpu profile saved: ' + (payload.capture.perf_data_name || basename(payload.capture.perf_data_path));
+          await poll(true);
+          if (payload.capture.firefox_profiler_url) {
+            window.open(payload.capture.firefox_profiler_url, '_blank', 'noopener,noreferrer');
+          } else if (payload.capture.gecko_profile_error) {
+            cpuProfileMessage = 'cpu profile saved, but Firefox export failed: ' + payload.capture.gecko_profile_error;
+          }
+        } else {
+          cpuProfileMessage = 'simpleperf recording started';
+          await poll(true);
+        }
+      } catch (error) {
+        cpuProfileMessage = 'cpu profile failed: ' + String(error);
+      } finally {
+        setCpuProfileLoading(false);
+        cpuChartLabel.textContent = cpuProfileMessage || cpuChartLabel.textContent;
+        drawCharts(currentSamples);
+      }
+    }
+
+    function isoToUnix(value) {
+      if (!value) return 0;
+      const time = new Date(value).getTime();
+      return Number.isFinite(time) ? time / 1000 : 0;
     }
 
     async function poll(skipSchedule) {
@@ -1256,7 +1516,7 @@ export function renderLivePage() {
         updateMetrics(payload);
       } catch (error) {
         setText('statusText', 'reconnecting');
-        setText('noteText', 'waiting for local watcher');
+        updateNote('waiting for local watcher');
       } finally {
         if (!skipSchedule) {
           clearTimeout(pollTimer);
@@ -1288,8 +1548,10 @@ export function renderLivePage() {
       updateDetails();
     });
     manualDumpButton.addEventListener('click', triggerManualDump);
+    document.getElementById('cpuProfileButton').addEventListener('click', triggerCpuProfile);
     clearLegacyServiceWorkers();
     ensureNotificationPermission();
+    ensureCpuProfileTimerLoop();
     poll();
   </script>
 </body>

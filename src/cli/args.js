@@ -96,6 +96,7 @@ Text-mode options:
   --pss-interval <sec>                    dumpsys meminfo refresh interval (default: 3)
   --output-dir <dir>                      Output directory (default: data)
   --serial <device-id>                    adb device serial
+  --dump-hook <command>                   Run a script or command after dump completion
 
 Run \`perfsight help leak-capture\` for optional leak detection options.
 `);
@@ -116,6 +117,7 @@ Web options:
   --host <host>                           Web bind host (default: 127.0.0.1)
   --port <port>                           Web bind port (default: 8765)
   --history-size <n>                      Web sample history size (default: 120)
+  --dump-hook <command>                   Run a script or command after dump completion
 
 Run \`perfsight help leak-capture\` for optional leak detection options.
 `);
@@ -146,6 +148,7 @@ Leak options:
   --leak-max-dumps-per-pid <n>            Max automatic dumps per pid
   --leak-max-dumps-per-session <n>        Max automatic dumps per session
   --leak-dump-dir <dir>                   HPROF capture directory under output-dir
+  --dump-hook <command>                   Run a script or command after dump completion
 
 Run \`perfsight help\` to see all options.
 `);
@@ -211,6 +214,7 @@ Common options:
   --pss-interval <sec>                    dumpsys meminfo refresh interval (default: 3)
   --output-dir <dir>                      Output directory (default: data)
   --serial <device-id>                    adb device serial
+  --dump-hook <command>                   Run a script or command after dump completion
 
 Web options:
   --host <host>                           Web bind host (default: 127.0.0.1)

@@ -2,6 +2,8 @@ import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { AdbClient, AdbError } from '../adb/adb-client.js';
 import { HprofCapture } from '../capture/hprof-capture.js';
+import { createDumpHookRunner } from '../capture/dump-hook.js';
+import { createSimpleperfCapture } from '../capture/simpleperf-capture.js';
 import { jsonLine, sanitizePackageName } from '../core/format.js';
 import { sleep, timestampStamp } from '../core/time.js';
 import { buildLeakConfig, LeakJudge } from '../leak/leak-judge.js';
@@ -56,6 +58,11 @@ export async function run({ packageName, options }) {
     });
 
     writer = await SampleWriter.open(csvPath);
+    const dumpHook = createDumpHookRunner({
+      command: options['dump-hook'],
+      logger,
+      runtimeLogPath: logger.filePath
+    });
     const collector = new PackageCollector({
       adb,
       packageName,
@@ -64,6 +71,15 @@ export async function run({ packageName, options }) {
     const sampleStore = new SampleStore(Number(options['history-size']));
     const leakJudge = leakConfig.enabled ? new LeakJudge(leakConfig) : null;
     let capabilities = await adb.packageCapabilities(packageName);
+    let simpleperfCapture = options.mode === 'web'
+      ? await createOptionalSimpleperfCapture({
+          adb,
+          packageName,
+          outputDir,
+          logger,
+          useRoot: !capabilities.profileable && capabilities.rooted
+        })
+      : null;
     let capture = createCapture({ adb, packageName, outputDir, leakConfig, capabilities });
     const webState = options.mode === 'web'
       ? new WebState({
@@ -77,11 +93,15 @@ export async function run({ packageName, options }) {
           capabilities,
           deviceInfo,
           appMaxJavaHeapMb: javaHeapMaxMb,
-          logger
+          logger,
+          dumpHook,
+          simpleperfCapture,
+          webBaseUrl: webUrlBase(options)
         })
       : null;
     let activeDeviceIdentity = deviceIdentity(deviceInfo);
     let connectionStatus = 'connected';
+    let webUrl = '';
 
     if (options.mode === 'web') {
       server = await startWebServer({
@@ -89,15 +109,17 @@ export async function run({ packageName, options }) {
         port: Number(options.port),
         state: webState
       });
-      const url = `http://${options.host === '0.0.0.0' ? '127.0.0.1' : options.host}:${options.port}`;
-      console.log(`Web UI: ${url}`);
-      console.log(`Runtime log: ${logger.filePath}`);
-      console.log('Press Ctrl-C to stop.');
-      await logger.info('Web UI 已启动', { url });
-      openBrowser(url).catch(() => {});
-    } else {
-      console.log(`Runtime log: ${logger.filePath}`);
+      webUrl = `http://${options.host === '0.0.0.0' ? '127.0.0.1' : options.host}:${options.port}`;
+      await logger.info('Web UI 已启动', { url: webUrl });
+      openBrowser(webUrl).catch(() => {});
     }
+    printStartupPanel({
+      packageName,
+      deviceInfo,
+      mode: options.mode,
+      runtimeLogPath: logger.filePath,
+      webUrl
+    });
 
     let prev = await collector.snapshot();
     webState?.setConnectionState('connected');
@@ -123,13 +145,23 @@ export async function run({ packageName, options }) {
           javaHeapMaxMb = await resolveJavaHeapMaxMb(adb, options);
           leakConfig = buildLeakConfig(options, javaHeapMaxMb);
           capabilities = await adb.packageCapabilities(packageName);
+          simpleperfCapture = options.mode === 'web'
+            ? await createOptionalSimpleperfCapture({
+                adb,
+                packageName,
+                outputDir,
+                logger,
+                useRoot: !capabilities.profileable && capabilities.rooted
+              })
+            : null;
           capture = createCapture({ adb, packageName, outputDir, leakConfig, capabilities });
           webState?.updateRuntime({
             capture,
             dumpReason: leakConfig.enabled ? capabilities.dumpReason : 'leak capture disabled',
             capabilities,
             deviceInfo,
-            appMaxJavaHeapMb: javaHeapMaxMb
+            appMaxJavaHeapMb: javaHeapMaxMb,
+            simpleperfCapture
           });
           connectionStatus = 'connected';
           webState?.setConnectionState('connected', deviceChanged ? '已切换到另一台设备' : '设备已重新连接，采样已恢复');
@@ -143,7 +175,7 @@ export async function run({ packageName, options }) {
         }
         let sample = buildSample(prev, curr, packageName);
         if (leakJudge) {
-          sample = await processLeakSample(sample, leakJudge, capture, webState);
+          sample = await processLeakSample(sample, leakJudge, capture, webState, dumpHook);
         }
         await writer.write(sample);
         sampleStore.add(sample);
@@ -230,7 +262,7 @@ function createCapture({ adb, packageName, outputDir, leakConfig, capabilities }
   });
 }
 
-async function processLeakSample(sample, leakJudge, capture, webState) {
+async function processLeakSample(sample, leakJudge, capture, webState, dumpHook) {
   const decision = leakJudge.evaluate(sample);
   sample.leakStatus = decision.leakStatus;
   sample.leakReasons = decision.reasons;
@@ -256,6 +288,14 @@ async function processLeakSample(sample, leakJudge, capture, webState) {
         hprof_path: result.hprofPath,
         manifest_path: result.manifestPath
       });
+      await runDumpHook(dumpHook, {
+        event: 'dump_completed',
+        status: 'completed',
+        sample,
+        dumpType: 'leak',
+        result,
+        reasons: decision.reasons
+      });
     } catch (error) {
       sample.note = sample.note ? `${sample.note} | hprof dump failed: ${error.message}` : `hprof dump failed: ${error.message}`;
       await webState?.logger?.error('自动 HPROF dump 失败', {
@@ -263,6 +303,14 @@ async function processLeakSample(sample, leakJudge, capture, webState) {
         reasons: decision.reasons,
         error: String(error?.message || error)
       });
+      await runDumpHook(dumpHook, {
+        event: 'dump_failed',
+        status: 'failed',
+        sample,
+        dumpType: 'leak',
+        reasons: decision.reasons,
+        errorMessage: String(error?.message || error)
+      }).catch(() => {});
     } finally {
       if (webState) {
         webState.dumpInProgress = false;
@@ -317,4 +365,54 @@ async function openBrowser(url) {
   const args = process.platform === 'win32' ? ['/c', 'start', '', url] : [url];
   const child = spawn(command, args, { detached: true, stdio: 'ignore' });
   child.unref();
+}
+
+async function runDumpHook(dumpHook, { event, status, sample, dumpType, result, reasons, errorMessage }) {
+  if (!dumpHook || !sample) return;
+  await dumpHook.run({
+    event,
+    status,
+    packageName: sample.package,
+    pid: sample.pids?.[0] || null,
+    dumpType,
+    timestampIso: sample.timestampIso,
+    manifestPath: result?.manifestPath || '',
+    hprofPath: result?.hprofPath || '',
+    reasons: reasons || [],
+    errorMessage: errorMessage || ''
+  });
+}
+
+function printStartupPanel({ packageName, deviceInfo, mode, runtimeLogPath, webUrl }) {
+  console.log('PerfSight | Android endurance monitoring');
+  console.log(`App: ${packageName}`);
+  console.log(`Device: ${deviceInfo.model} / ${deviceInfo.android} / ${deviceInfo.serial}`);
+  console.log(`Mode: ${mode}`);
+  if (webUrl) {
+    console.log(`UI: ${webUrl}`);
+  }
+  console.log(`Log: ${runtimeLogPath}`);
+  console.log('Support: wangkai39@xiaomi.com');
+  console.log('Press Ctrl-C to stop.');
+}
+
+async function createOptionalSimpleperfCapture({ adb, packageName, outputDir, logger, useRoot }) {
+  try {
+    return await createSimpleperfCapture({
+      adb,
+      packageName,
+      outputDir,
+      logger,
+      useRoot
+    });
+  } catch (error) {
+    await logger?.warn('simpleperf CPU 录制不可用', {
+      error: String(error?.message || error)
+    });
+    return null;
+  }
+}
+
+function webUrlBase(options) {
+  return `http://${options.host === '0.0.0.0' ? '127.0.0.1' : options.host}:${options.port}`;
 }

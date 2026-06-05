@@ -125,6 +125,12 @@ npm run web -- com.mi.car.mobile --enable-leak-capture
 
 默认会自动打开浏览器，并且结束采样后会自动导出离线 HTML 报表。
 
+Web UI can also record a device-side `simpleperf` CPU profile, convert it to Gecko profile JSON using the bundled simpleperf runtime inside `perfsight`, and open it directly in Firefox Profiler. The host only needs `python3` (or `python`) available in `PATH`. The packaged runtime currently covers macOS hosts; other hosts fall back to a local Android NDK simpleperf install when available.
+
+Examples:
+
+Use the `Start Recording` / `Stop Recording` button in the App CPU panel to decide the capture window interactively.
+
 ## 自动检测升级
 
 PerfSight 在启动 `text`、`web`、`version` 命令时会自动检查 npm 上是否有新版本，并在有更新时输出简洁提示。
@@ -192,6 +198,24 @@ perfsight text com.mi.car.mobile --interval 0.5 --pss-interval 3
 ```bash
 perfsight text com.mi.car.mobile --serial <device-id>
 ```
+
+Dump completion hook:
+
+```bash
+perfsight text com.mi.car.mobile --enable-leak-capture --dump-hook "/Users/sire/bin/on_dump_ready.sh"
+perfsight web com.mi.car.mobile --enable-leak-capture --dump-hook "python3 /Users/sire/bin/on_dump_ready.py"
+```
+
+PerfSight runs the hook after dump completion and passes structured arguments such as:
+
+- `--event dump_completed|dump_failed`
+- `--package <package>`
+- `--pid <pid>`
+- `--dump-type manual|leak`
+- `--manifest <path>`
+- `--hprof <path>`
+- `--reason <reason>` (repeatable)
+- `--error <message>` on failures
 
 ## 输出
 

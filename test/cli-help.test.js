@@ -10,18 +10,20 @@ test('parseArgs recognizes help command and topic', () => {
 });
 
 test('parseArgs recognizes text subcommand', () => {
-  const parsed = parseArgs(['text', 'com.example.app']);
+  const parsed = parseArgs(['text', 'com.example.app', '--dump-hook', '/tmp/on-dump.sh']);
   assert.equal(parsed.command, 'text');
   assert.equal(parsed.helpTopic, '');
   assert.equal(parsed.packageName, 'com.example.app');
   assert.equal(parsed.options.mode, 'text');
+  assert.equal(parsed.options['dump-hook'], '/tmp/on-dump.sh');
 });
 
 test('parseArgs recognizes web subcommand', () => {
-  const parsed = parseArgs(['web', 'com.example.app']);
+  const parsed = parseArgs(['web', 'com.example.app', '--port', '9001']);
   assert.equal(parsed.command, 'web');
   assert.equal(parsed.packageName, 'com.example.app');
   assert.equal(parsed.options.mode, 'web');
+  assert.equal(parsed.options.port, 9001);
 });
 
 test('parseArgs recognizes version subcommand', () => {
@@ -62,6 +64,7 @@ test('printHelp shows text topic help', () => {
   printHelp({ write(chunk) { text += chunk; } }, 'text');
   assert.match(text, /Usage: perfsight text <package> \[options\]/);
   assert.match(text, /Text mode prints live samples/);
+  assert.match(text, /--dump-hook <command>/);
   assert.doesNotMatch(text, /--no-export-report/);
 });
 
@@ -70,6 +73,9 @@ test('printHelp shows web topic help', () => {
   printHelp({ write(chunk) { text += chunk; } }, 'web');
   assert.match(text, /Usage: perfsight web <package> \[options\]/);
   assert.match(text, /--enable-leak-capture/);
+  assert.match(text, /--dump-hook <command>/);
+  assert.doesNotMatch(text, /--simpleperf-duration-sec <sec>/);
+  assert.doesNotMatch(text, /--simpleperf-path <path>/);
   assert.doesNotMatch(text, /--no-open-browser/);
 });
 
@@ -78,6 +84,7 @@ test('printHelp shows leak topic help', () => {
   printHelp({ write(chunk) { text += chunk; } }, 'leak-capture');
   assert.match(text, /structure rule/);
   assert.match(text, /watermark rule/);
+  assert.match(text, /--dump-hook <command>/);
   assert.doesNotMatch(text, /leak-warmup-sec/);
   assert.doesNotMatch(text, /leak-struct-gap-suspect/);
   assert.doesNotMatch(text, /leak-struct-gap-high/);

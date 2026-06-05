@@ -1,0 +1,24 @@
+Bundled simpleperf Gecko conversion runtime
+===========================================
+
+This directory vendors selected files from Android NDK simpleperf
+version 29.0.13113456 to convert `perf.data` into Gecko profile JSON.
+
+Source:
+- Android Open Source Project / Android NDK simpleperf
+
+Included components:
+- `gecko_profile_generator.py`
+- `simpleperf_report_lib.py`
+- `simpleperf_utils.py`
+- `report_sample_pb2.py`
+- `profile_pb2.py`
+- `bin/darwin/x86_64/libsimpleperf_report.dylib`
+
+Copyright:
+- Copyright (C) The Android Open Source Project
+
+License:
+- Apache License 2.0
+
+The original license headers are preserved in the vendored source files.

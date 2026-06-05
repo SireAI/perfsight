@@ -60,7 +60,7 @@ export class HprofCapture {
       local_hprof_path: localHprof
     };
     await writeFile(manifestPath, jsonLine(manifest), 'utf8');
-    return { hprofPath: localHprof, manifestPath };
+    return { hprofPath: localHprof, manifestPath, manifest };
   }
 
   async remoteFileSize(remotePath) {
