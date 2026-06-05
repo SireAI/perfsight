@@ -83,6 +83,23 @@ function normalizeChannel(value) {
   return value === 'snapshot' ? 'snapshot' : 'latest';
 }
 
+function classifyLookupFailure(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  const normalized = message.toLowerCase();
+  if (normalized.includes('404') || normalized.includes('not found')) {
+    return {
+      reason: 'package_not_published',
+      userMessage: 'package is not published on the selected npm channel yet',
+      detail: message
+    };
+  }
+  return {
+    reason: 'version_lookup_failed',
+    userMessage: message,
+    detail: message
+  };
+}
+
 function inferChannelFromVersion(version) {
   return String(version || '').includes('-snapshot.') ? 'snapshot' : 'latest';
 }
@@ -270,7 +287,33 @@ export async function installSelfUpdate(input) {
   const previousState = await readSelfUpdateState(statePath);
   const channel = normalizeChannel(input.channel || inferChannelFromVersion(input.currentVersion));
   const installSource = await detectInstallSource(input.packageRoot, input.packageName);
-  const latestVersion = input.targetVersion || await queryPublishedVersion(input.packageName, channel);
+  let latestVersion = input.targetVersion;
+  try {
+    latestVersion = latestVersion || await queryPublishedVersion(input.packageName, channel);
+  } catch (error) {
+    const failure = classifyLookupFailure(error);
+    const state = {
+      ...previousState,
+      currentVersion: input.currentVersion,
+      lastCheckedAt: new Date().toISOString(),
+      lastUpgradeAttemptAt: new Date().toISOString(),
+      lastCheckStatus: 'check_failed',
+      lastError: failure.detail,
+      installSource,
+      channel
+    };
+    await writeSelfUpdateState(state, statePath);
+    return {
+      attempted: false,
+      currentVersion: input.currentVersion,
+      installSource,
+      channel,
+      success: false,
+      state,
+      reason: failure.reason,
+      message: failure.userMessage
+    };
+  }
   const updateAvailable = compareVersions(latestVersion, input.currentVersion) > 0;
 
   if (installSource !== 'npm_global') {

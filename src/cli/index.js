@@ -86,6 +86,12 @@ async function handleUpgradeCommand(options) {
     return;
   }
 
+  if (result.reason === 'version_lookup_failed' || result.reason === 'package_not_published') {
+    process.stdout.write(`${result.message || 'unable to resolve a published version from npm registry'}\n`);
+    process.exitCode = 2;
+    return;
+  }
+
   process.stdout.write('upgrade failed\n');
   if (result.state?.lastError) {
     process.stdout.write(`${result.state.lastError}\n`);
