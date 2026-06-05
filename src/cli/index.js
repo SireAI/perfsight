@@ -1,5 +1,97 @@
 import { parseArgs, printHelp } from './args.js';
 import { run } from '../app/run.js';
+import {
+  checkForSelfUpdate,
+  formatSelfUpdateMessage,
+  formatUpgradeCommand,
+  installSelfUpdate,
+  readCliPackageMeta
+} from './self-update.js';
+
+async function maybeNotifySelfUpdate(command, options) {
+  const meta = await readCliPackageMeta();
+  const result = await checkForSelfUpdate({
+    command,
+    currentVersion: meta.version,
+    packageName: meta.packageName,
+    packageRoot: meta.packageRoot,
+    channel: options.channel,
+    force: Boolean(options['check-update'])
+  });
+  if (result.updateAvailable) {
+    const message = formatSelfUpdateMessage({
+      ...result,
+      packageName: meta.packageName
+    });
+    if (message) {
+      process.stderr.write(`${message}\n`);
+    }
+  }
+  return { meta, result };
+}
+
+async function handleVersionCommand(options) {
+  const meta = await readCliPackageMeta();
+  const result = await checkForSelfUpdate({
+    command: 'version',
+    currentVersion: meta.version,
+    packageName: meta.packageName,
+    packageRoot: meta.packageRoot,
+    channel: options.channel,
+    force: Boolean(options['check-update'])
+  });
+  process.stdout.write(`perfsight ${meta.version}\n`);
+  process.stdout.write(`package: ${meta.packageName}\n`);
+  process.stdout.write(`channel: ${result.channel}\n`);
+  process.stdout.write(`install source: ${result.installSource}\n`);
+  if (result.latestVersion) {
+    process.stdout.write(`latest: ${result.latestVersion}\n`);
+  }
+  process.stdout.write(`update available: ${result.updateAvailable ? 'yes' : 'no'}\n`);
+  if (result.updateAvailable) {
+    process.stdout.write(`upgrade: ${formatUpgradeCommand(meta.packageName, result.channel)}\n`);
+  }
+}
+
+async function handleUpgradeCommand(options) {
+  const meta = await readCliPackageMeta();
+  const result = await installSelfUpdate({
+    currentVersion: meta.version,
+    packageName: meta.packageName,
+    packageRoot: meta.packageRoot,
+    channel: options.channel,
+    force: Boolean(options.force)
+  });
+  process.stdout.write(`perfsight ${meta.version}\n`);
+  process.stdout.write(`install source: ${result.installSource}\n`);
+  process.stdout.write(`channel: ${result.channel}\n`);
+  if (result.latestVersion) {
+    process.stdout.write(`target: ${result.latestVersion}\n`);
+  }
+
+  if (result.success && result.reason === 'already_latest') {
+    process.stdout.write('already latest\n');
+    return;
+  }
+
+  if (result.success) {
+    process.stdout.write('upgrade succeeded\n');
+    return;
+  }
+
+  if (result.reason === 'unsupported_installation') {
+    process.stdout.write('automatic upgrade is only supported for global npm installs\n');
+    process.stdout.write(`manual upgrade: ${formatUpgradeCommand(meta.packageName, result.channel)}\n`);
+    process.exitCode = 2;
+    return;
+  }
+
+  process.stdout.write('upgrade failed\n');
+  if (result.state?.lastError) {
+    process.stdout.write(`${result.state.lastError}\n`);
+  }
+  process.exitCode = 1;
+}
 
 export async function main(argv) {
   const { command, packageName, options, helpTopic } = parseArgs(argv);
@@ -8,10 +100,19 @@ export async function main(argv) {
     printHelp(process.stdout, topic);
     return;
   }
+  if (command === 'version') {
+    await handleVersionCommand(options);
+    return;
+  }
+  if (command === 'upgrade') {
+    await handleUpgradeCommand(options);
+    return;
+  }
   if (!packageName) {
     printHelp(process.stderr);
     process.exitCode = 2;
     return;
   }
+  await maybeNotifySelfUpdate(command, options);
   await run({ packageName, options });
 }

@@ -24,6 +24,21 @@ test('parseArgs recognizes web subcommand', () => {
   assert.equal(parsed.options.mode, 'web');
 });
 
+test('parseArgs recognizes version subcommand', () => {
+  const parsed = parseArgs(['version', '--check-update']);
+  assert.equal(parsed.command, 'version');
+  assert.equal(parsed.packageName, '');
+  assert.equal(parsed.options['check-update'], true);
+});
+
+test('parseArgs recognizes upgrade subcommand', () => {
+  const parsed = parseArgs(['upgrade', '--channel', 'snapshot', '--force']);
+  assert.equal(parsed.command, 'upgrade');
+  assert.equal(parsed.packageName, '');
+  assert.equal(parsed.options.channel, 'snapshot');
+  assert.equal(parsed.options.force, true);
+});
+
 test('parseArgs no longer accepts package name without subcommand', () => {
   const parsed = parseArgs(['com.example.app']);
   assert.equal(parsed.command, '');
@@ -34,8 +49,10 @@ test('parseArgs no longer accepts package name without subcommand', () => {
 test('printHelp shows top-level help topics', () => {
   let text = '';
   printHelp({ write(chunk) { text += chunk; } }, '');
-  assert.match(text, /perfsight help \[text\|web\|leak-capture\]/);
+  assert.match(text, /perfsight help \[text\|web\|leak-capture\|version\|upgrade\]/);
   assert.match(text, /Usage: perfsight text <package> \[options\]/);
+  assert.match(text, /perfsight version \[options\]/);
+  assert.match(text, /perfsight upgrade \[options\]/);
   assert.match(text, /1\. text mode/);
   assert.match(text, /2\. web mode/);
 });
@@ -64,4 +81,18 @@ test('printHelp shows leak topic help', () => {
   assert.doesNotMatch(text, /leak-warmup-sec/);
   assert.doesNotMatch(text, /leak-struct-gap-suspect/);
   assert.doesNotMatch(text, /leak-struct-gap-high/);
+});
+
+test('printHelp shows version topic help', () => {
+  let text = '';
+  printHelp({ write(chunk) { text += chunk; } }, 'version');
+  assert.match(text, /Usage: perfsight version \[options\]/);
+  assert.match(text, /--check-update/);
+});
+
+test('printHelp shows upgrade topic help', () => {
+  let text = '';
+  printHelp({ write(chunk) { text += chunk; } }, 'upgrade');
+  assert.match(text, /Usage: perfsight upgrade \[options\]/);
+  assert.match(text, /--force/);
 });

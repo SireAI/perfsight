@@ -55,6 +55,22 @@ npm run help
 npm run help -- text
 npm run help -- web
 npm run help -- leak-capture
+node ./bin/perfsight.js help version
+node ./bin/perfsight.js help upgrade
+```
+
+查看版本与更新状态：
+
+```bash
+perfsight version
+perfsight version --check-update
+```
+
+执行升级：
+
+```bash
+perfsight upgrade
+perfsight upgrade --channel snapshot
 ```
 
 旧 Python 脚本保留在 `tools/adb_perf_watch.py`，作为历史参考实现。
@@ -108,6 +124,32 @@ npm run web -- com.mi.car.mobile --enable-leak-capture
 ```
 
 默认会自动打开浏览器，并且结束采样后会自动导出离线 HTML 报表。
+
+## 自动检测升级
+
+PerfSight 在启动 `text`、`web`、`version` 命令时会自动检查 npm 上是否有新版本，并在有更新时输出简洁提示。
+
+- 默认检查 `latest` 渠道
+- 当前命令带 `--channel snapshot` 时，会检查 snapshot 渠道
+- 检查结果缓存 12 小时，避免频繁访问 npm
+- 检查失败不会阻断正常采样和查看版本
+
+手动触发更新检查：
+
+```bash
+perfsight version --check-update
+```
+
+手动升级：
+
+```bash
+perfsight upgrade
+```
+
+说明：
+
+- 自动升级仅支持全局安装场景：`npm install -g @perfsight/cli`
+- 如果当前是源码仓库或 `npx` 使用方式，CLI 会给出手动升级命令
 
 指定网页端口：
 

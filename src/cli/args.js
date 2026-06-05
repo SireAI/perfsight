@@ -1,6 +1,8 @@
 const BOOL_FLAGS = new Set([
   'help',
-  'enable-leak-capture'
+  'enable-leak-capture',
+  'check-update',
+  'force'
 ]);
 
 const OPTION_DEFAULTS = {
@@ -61,11 +63,13 @@ export function parseArgs(argv) {
     command = 'help';
     helpTopic = positionals[1] || '';
     options.help = true;
-  } else if (positionals[0] === 'text' || positionals[0] === 'web') {
+  } else if (positionals[0] === 'text' || positionals[0] === 'web' || positionals[0] === 'version' || positionals[0] === 'upgrade') {
     command = positionals[0];
-    options.mode = command;
+    if (command === 'text' || command === 'web') {
+      options.mode = command;
+    }
   }
-  const packageName = command && command !== 'help' ? positionals[1] : '';
+  const packageName = command === 'text' || command === 'web' ? positionals[1] : '';
   return {
     command,
     helpTopic,
@@ -148,9 +152,45 @@ Run \`perfsight help\` to see all options.
     return;
   }
 
+  if (normalized === 'version') {
+    output.write(`Usage: perfsight version [options]
+
+Show the installed version and optionally force an update check.
+
+Examples:
+  perfsight version
+  perfsight version --check-update
+  perfsight version --channel snapshot --check-update
+
+Version options:
+  --check-update                         Force a fresh npm version check
+  --channel <latest|snapshot>            Release channel
+`);
+    return;
+  }
+
+  if (normalized === 'upgrade') {
+    output.write(`Usage: perfsight upgrade [options]
+
+Upgrade the npm CLI when installed globally.
+
+Examples:
+  perfsight upgrade
+  perfsight upgrade --channel snapshot
+  perfsight upgrade --force
+
+Upgrade options:
+  --channel <latest|snapshot>            Release channel
+  --force                                Reinstall even when already latest
+`);
+    return;
+  }
+
   output.write(`Usage: perfsight text <package> [options]
        perfsight web <package> [options]
-       perfsight help [text|web|leak-capture]
+       perfsight version [options]
+       perfsight upgrade [options]
+       perfsight help [text|web|leak-capture|version|upgrade]
 
 Android app CPU, PSS, leak watermark, and HPROF capture watcher over adb.
 
@@ -161,6 +201,10 @@ Modes:
   2. web mode
      perfsight web com.example.app
      perfsight web com.example.app --enable-leak-capture
+
+Commands:
+  version                                Show installed version and update status
+  upgrade                                Upgrade global npm install
 
 Common options:
   --interval <sec>                        CPU sample interval (default: 0.5)
@@ -183,11 +227,16 @@ Leak options:
   --leak-max-dumps-per-pid <n>            Max automatic dumps per pid
   --leak-max-dumps-per-session <n>        Max automatic dumps per session
   --leak-dump-dir <dir>                   HPROF capture directory under output-dir
+  --channel <latest|snapshot>             Release channel for version/upgrade
+  --check-update                          Force a fresh npm version check
+  --force                                 Reinstall even when already latest
   --help                                  Show this help
 
 Topics:
   help text                               Show text-mode usage
   help web                                Show web-mode usage
   help leak-capture                       Show leak-capture usage
+  help version                            Show version usage
+  help upgrade                            Show upgrade usage
 `);
 }
