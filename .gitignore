@@ -1,0 +1,7 @@
+node_modules/
+data/
+.optimus-release/
+*.tgz
+.DS_Store
+tools/__pycache__/
+*.pyc

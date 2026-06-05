@@ -1,0 +1,67 @@
+{
+  "name": "@perfsight/cli",
+  "version": "0.1.0",
+  "description": "Android app CPU, PSS, leak watermark, and HPROF capture watcher over adb.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SireAI/perfsight.git"
+  },
+  "homepage": "https://github.com/SireAI/perfsight#readme",
+  "bugs": {
+    "url": "https://github.com/SireAI/perfsight/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "packageManager": "npm@10",
+  "type": "module",
+  "bin": {
+    "perfsight": "bin/perfsight.js",
+    "adb-perf-watch": "bin/perfsight.js"
+  },
+  "exports": {
+    ".": "./src/index.js",
+    "./cli": "./src/cli/index.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "scripts",
+    "test",
+    "docs",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "help": "node ./bin/perfsight.js help",
+    "text": "node ./bin/perfsight.js text",
+    "web": "node ./bin/perfsight.js web",
+    "check": "node ./scripts/check-syntax.mjs",
+    "smoke": "node ./bin/perfsight.js --help",
+    "test": "node --test",
+    "verify": "npm run check && npm test && npm run smoke",
+    "pack:dry": "npm pack --dry-run --cache /private/tmp/perfsight-npm-cache",
+    "prepack": "npm run verify",
+    "release:status": "node ./scripts/release.mjs status",
+    "release:prepare": "node ./scripts/release.mjs prepare",
+    "release:preflight": "node ./scripts/release.mjs preflight",
+    "release:check": "node ./scripts/release.mjs check",
+    "release:check:snapshot": "node ./scripts/release.mjs check --tag snapshot",
+    "release:pack": "node ./scripts/release.mjs pack",
+    "release:publish": "node ./scripts/release.mjs publish",
+    "release:publish:snapshot": "node ./scripts/release.mjs publish --tag snapshot",
+    "release:tag": "node ./scripts/release.mjs tag"
+  },
+  "keywords": [
+    "android",
+    "adb",
+    "performance",
+    "memory",
+    "hprof",
+    "leak"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}
