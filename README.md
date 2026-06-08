@@ -43,6 +43,12 @@ Start from a clean artifact set for the current package:
 perfsight text com.mi.car.mobile --output-dir ./data --reset-output-dir
 ```
 
+Run text mode without periodic sample lines while still printing automatic dump events:
+
+```bash
+perfsight text com.mi.car.mobile --enable-leak-capture --quiet-samples
+```
+
 ### Common Commands
 
 ```bash
@@ -76,6 +82,8 @@ PerfSight writes managed artifacts under `output-dir` with a package-scoped stru
 ```
 
 `--reset-output-dir` clears the current package's existing `sessions`, `captures`, `simpleperf`, and `logs` artifacts before a new run.
+
+`--quiet-samples` is useful in text mode when you want a quieter console and only care about startup, errors, and automatic dump events.
 
 ## Web UI Features
 

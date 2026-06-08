@@ -10,13 +10,14 @@ test('parseArgs recognizes help command and topic', () => {
 });
 
 test('parseArgs recognizes text subcommand', () => {
-  const parsed = parseArgs(['text', 'com.example.app', '--dump-hook', '/tmp/on-dump.sh', '--reset-output-dir']);
+  const parsed = parseArgs(['text', 'com.example.app', '--dump-hook', '/tmp/on-dump.sh', '--reset-output-dir', '--quiet-samples']);
   assert.equal(parsed.command, 'text');
   assert.equal(parsed.helpTopic, '');
   assert.equal(parsed.packageName, 'com.example.app');
   assert.equal(parsed.options.mode, 'text');
   assert.equal(parsed.options['dump-hook'], '/tmp/on-dump.sh');
   assert.equal(parsed.options['reset-output-dir'], true);
+  assert.equal(parsed.options['quiet-samples'], true);
 });
 
 test('parseArgs recognizes web subcommand', () => {
@@ -25,6 +26,15 @@ test('parseArgs recognizes web subcommand', () => {
   assert.equal(parsed.packageName, 'com.example.app');
   assert.equal(parsed.options.mode, 'web');
   assert.equal(parsed.options.port, 9001);
+});
+
+test('parseArgs ignores npm argument separator before forwarded options', () => {
+  const parsed = parseArgs(['text', 'com.example.app', '--enable-leak-capture', '--', '--output-dir', '/tmp/output']);
+  assert.equal(parsed.command, 'text');
+  assert.equal(parsed.packageName, 'com.example.app');
+  assert.equal(parsed.options.mode, 'text');
+  assert.equal(parsed.options['enable-leak-capture'], true);
+  assert.equal(parsed.options['output-dir'], '/tmp/output');
 });
 
 test('parseArgs recognizes version subcommand', () => {
@@ -66,6 +76,7 @@ test('printHelp shows text topic help', () => {
   assert.match(text, /Usage: perfsight text <package> \[options\]/);
   assert.match(text, /Text mode prints live samples/);
   assert.match(text, /--reset-output-dir/);
+  assert.match(text, /--quiet-samples/);
   assert.match(text, /--dump-hook <command>/);
   assert.doesNotMatch(text, /--no-export-report/);
 });

@@ -18,6 +18,12 @@ npm run text -- com.mi.car.mobile --enable-leak-capture
 npm run web -- com.mi.car.mobile --enable-leak-capture
 ```
 
+Forward extra CLI options through npm with a second `--`:
+
+```bash
+npm run text -- com.mi.car.mobile --enable-leak-capture -- --output-dir /tmp/perfsight-output --quiet-samples
+```
+
 Helpful command topics:
 
 ```bash
@@ -38,6 +44,7 @@ Useful options:
 - `--serial`
 - `--output-dir`
 - `--reset-output-dir`
+- `--quiet-samples`
 - `--enable-leak-capture`
 - `--dump-hook`
 
@@ -70,6 +77,8 @@ PerfSight writes managed artifacts under `output-dir/`:
 - `logs/<package>/`
 
 `--reset-output-dir` removes the current package's managed artifacts before the next run. It does not delete unrelated files under `output-dir`.
+
+`--quiet-samples` only affects text mode. It suppresses the periodic sample lines while keeping startup, error, and automatic dump event output visible.
 
 Runtime logs are retained for seven days.
 

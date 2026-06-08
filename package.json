@@ -1,6 +1,6 @@
 {
   "name": "@sireai/perfsight",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Android app CPU, PSS, leak watermark, and HPROF capture watcher over adb.",
   "repository": {
     "type": "git",

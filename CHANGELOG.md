@@ -11,6 +11,21 @@ The format is based on Keep a Changelog.
 
 ### Fixed
 
+## [0.3.1] - 2026-06-08
+
+### Added
+
+- `--quiet-samples` for quieter text-mode runs while keeping automatic dump events visible
+
+### Changed
+
+- documented npm argument forwarding with a second `--` and refreshed text-mode usage examples
+
+### Fixed
+
+- CLI argument parsing now ignores npm's argument separator so forwarded `--output-dir` and similar flags work correctly
+- local `output/` runs are now ignored by git
+
 ## [0.3.0] - 2026-06-08
 
 ### Added

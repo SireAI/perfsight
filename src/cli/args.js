@@ -3,7 +3,8 @@ const BOOL_FLAGS = new Set([
   'enable-leak-capture',
   'check-update',
   'force',
-  'reset-output-dir'
+  'reset-output-dir',
+  'quiet-samples'
 ]);
 
 const OPTION_DEFAULTS = {
@@ -44,6 +45,9 @@ export function parseArgs(argv) {
   let helpTopic = '';
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
+    if (arg === '--') {
+      continue;
+    }
     if (!arg.startsWith('--')) {
       positionals.push(arg);
       continue;
@@ -97,6 +101,7 @@ Text-mode options:
   --pss-interval <sec>                    dumpsys meminfo refresh interval (default: 3)
   --output-dir <dir>                      Output directory (default: data)
   --reset-output-dir                      Clear this package's existing artifacts under output-dir before run
+  --quiet-samples                         Hide periodic sample lines; auto dump events still print
   --serial <device-id>                    adb device serial
   --dump-hook <command>                   Run a script or command after dump completion
 
@@ -217,6 +222,7 @@ Common options:
   --pss-interval <sec>                    dumpsys meminfo refresh interval (default: 3)
   --output-dir <dir>                      Output directory (default: data)
   --reset-output-dir                      Clear this package's existing artifacts under output-dir before run
+  --quiet-samples                         Hide periodic sample lines in text mode; auto dump events still print
   --serial <device-id>                    adb device serial
   --dump-hook <command>                   Run a script or command after dump completion
 

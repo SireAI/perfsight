@@ -217,7 +217,9 @@ export async function run({ packageName, options }) {
           });
         }
         if (options.mode !== 'web') {
-          printSample(sample);
+          if (shouldPrintTextSample(sample, options)) {
+            printSample(sample);
+          }
         }
         prev = curr;
       } catch (error) {
@@ -364,6 +366,18 @@ function printSample(sample) {
     `status=${sample.status}`,
     sample.note
   ].filter(Boolean).join(' '));
+}
+
+function shouldPrintTextSample(sample, options) {
+  if (!options['quiet-samples']) return true;
+  return isAutoDumpEventSample(sample);
+}
+
+function isAutoDumpEventSample(sample) {
+  if (!sample) return false;
+  if (sample.dumpType === 'leak' && sample.dumpHprofPath) return true;
+  const note = String(sample.note || '');
+  return note.includes('hprof dumped:') || note.includes('hprof dump failed:');
 }
 
 function fmt(value, suffix) {
