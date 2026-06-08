@@ -1,5 +1,6 @@
 import { parseArgs, printHelp } from './args.js';
 import { run } from '../app/run.js';
+import { AdbClient } from '../adb/adb-client.js';
 import {
   checkForSelfUpdate,
   formatSelfUpdateMessage,
@@ -97,6 +98,35 @@ async function handleUpgradeCommand(options) {
     process.stdout.write(`${result.state.lastError}\n`);
   }
   process.exitCode = 1;
+}
+
+export function formatCliError(error) {
+  if (AdbClient.isDeviceUnavailableError(error)) {
+    return [
+      'No adb device detected.',
+      '',
+      'Please check the following and try again:',
+      '1. Connect or reconnect your phone.',
+      '2. Make sure USB debugging is enabled.',
+      '3. Run `adb devices` and confirm the device status is `device`.',
+      '4. Re-run the perfsight command.'
+    ].join('\n');
+  }
+  if (error && error.code === 'EADDRINUSE') {
+    const host = error.address || '127.0.0.1';
+    const port = error.port || 'unknown';
+    return [
+      `Web UI port is already in use: ${host}:${port}`,
+      '',
+      'Please try one of the following:',
+      '1. Stop the other process using this port.',
+      '2. Re-run with another port, for example: `--port 8766`.'
+    ].join('\n');
+  }
+  if (process.env.PERFSIGHT_DEBUG === '1') {
+    return error && error.stack ? error.stack : String(error);
+  }
+  return error instanceof Error ? error.message : String(error);
 }
 
 export async function main(argv) {

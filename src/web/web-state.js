@@ -17,7 +17,8 @@ export class WebState {
     logger,
     dumpHook,
     simpleperfCapture,
-    webBaseUrl
+    webBaseUrl,
+    cpuProfileExportDir
   }) {
     this.packageName = packageName;
     this.intervalSec = intervalSec;
@@ -33,6 +34,7 @@ export class WebState {
     this.dumpHook = dumpHook || null;
     this.simpleperfCapture = simpleperfCapture || null;
     this.webBaseUrl = webBaseUrl || '';
+    this.cpuProfileExportDir = cpuProfileExportDir || '';
     this.startedAt = new Date().toISOString();
     this.connectionStatus = 'connected';
     this.connectionNote = '';
@@ -78,6 +80,7 @@ export class WebState {
       cpu_profile_in_progress_message: this.cpuProfileInProgressMessage,
       cpu_profile_in_progress_started_at: this.cpuProfileInProgressStartedAt,
       cpu_profile_in_progress_pid: this.cpuProfileInProgressPid,
+      cpu_profile_export_dir: this.cpuProfileExportDir,
       dump_history: [...this.dumpHistory].reverse(),
       last_dump_event: this.dumpHistory.at(-1) || null,
       cpu_profile_history: [...this.cpuProfileHistory].reverse(),
@@ -262,6 +265,19 @@ export class WebState {
         : ''
     };
     this.cpuProfileHistory.push(event);
+    if (this.logger) {
+      void this.logger.info('CPU profile 导出记录已登记', {
+        package: event.package,
+        pid: event.pid,
+        perf_data_path: event.perf_data_path,
+        gecko_profile_path: event.gecko_profile_path || '',
+        export_dir: this.cpuProfileExportDir || '',
+        perf_data_download_url: event.perf_data_download_url,
+        gecko_profile_download_url: event.gecko_profile_download_url || '',
+        firefox_profiler_url: event.firefox_profiler_url || '',
+        gecko_profile_error: event.gecko_profile_error || ''
+      });
+    }
     return event;
   }
 
@@ -284,7 +300,7 @@ export class WebState {
     }
   }
 
-  updateRuntime({ capture, dumpReason, capabilities, deviceInfo, appMaxJavaHeapMb, simpleperfCapture }) {
+  updateRuntime({ capture, dumpReason, capabilities, deviceInfo, appMaxJavaHeapMb, simpleperfCapture, cpuProfileExportDir }) {
     this.capture = capture;
     this.dumpReason = dumpReason;
     this.capabilities = capabilities;
@@ -293,12 +309,16 @@ export class WebState {
     if (simpleperfCapture !== undefined) {
       this.simpleperfCapture = simpleperfCapture;
     }
+    if (cpuProfileExportDir !== undefined) {
+      this.cpuProfileExportDir = cpuProfileExportDir || '';
+    }
     if (this.logger) {
       void this.logger.info('运行时能力已刷新', {
         debuggable: Boolean(capabilities?.debuggable),
         profileable: Boolean(capabilities?.profileable),
         rooted: Boolean(capabilities?.rooted),
-        device_model: deviceInfo?.model || ''
+        device_model: deviceInfo?.model || '',
+        cpu_profile_export_dir: this.cpuProfileExportDir || ''
       });
     }
   }

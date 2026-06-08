@@ -7,11 +7,12 @@ const RETENTION_DAYS = 7;
 
 export async function createRuntimeLogger({ outputDir, packageName }) {
   const logsDir = path.join(outputDir, 'logs');
-  await mkdir(logsDir, { recursive: true });
+  const packageLogsDir = path.join(logsDir, sanitizePackageName(packageName));
+  await mkdir(packageLogsDir, { recursive: true });
   await pruneExpiredLogs(logsDir);
   const filePath = path.join(
-    logsDir,
-    `${sanitizePackageName(packageName)}_${timestampStamp()}.log`
+    packageLogsDir,
+    `${timestampStamp()}.log`
   );
   const logger = new RuntimeLogger(filePath);
   await logger.info('日志系统已启动', {
@@ -56,21 +57,33 @@ function formatLine(level, message, details) {
 
 async function pruneExpiredLogs(logsDir) {
   const cutoffMs = Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000;
-  const entries = await readdir(logsDir, { withFileTypes: true });
+  await pruneExpiredLogsInDir(logsDir, cutoffMs);
+}
+
+async function pruneExpiredLogsInDir(dirPath, cutoffMs) {
+  const entries = await readdir(dirPath, { withFileTypes: true });
   await Promise.all(entries.map(async (entry) => {
+    const entryPath = path.join(dirPath, entry.name);
+    if (entry.isDirectory()) {
+      await pruneExpiredLogsInDir(entryPath, cutoffMs);
+      const rest = await readdir(entryPath).catch(() => []);
+      if (rest.length === 0) {
+        await rm(entryPath, { recursive: true, force: true });
+      }
+      return;
+    }
     if (!entry.isFile() || !entry.name.endsWith('.log')) return;
     const stamp = extractTimestamp(entry.name);
     if (!stamp || stamp >= cutoffMs) return;
-    await rm(path.join(logsDir, entry.name), { force: true });
+    await rm(entryPath, { force: true });
   }));
 }
 
 function extractTimestamp(filename) {
-  const match = filename.match(/_(\d{8}_\d{6})\.log$/);
+  const match = filename.match(/(\d{8}_\d{6})\.log$/);
   if (!match) return null;
   const raw = match[1];
   const text = `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}T${raw.slice(9, 11)}:${raw.slice(11, 13)}:${raw.slice(13, 15)}`;
   const value = Date.parse(text);
   return Number.isFinite(value) ? value : null;
 }
-

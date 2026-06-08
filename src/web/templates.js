@@ -473,6 +473,8 @@ export function renderLivePage() {
       display: grid;
       gap: 14px;
       align-content: start;
+      min-width: 0;
+      overflow: hidden;
     }
     .kv {
       display: grid;
@@ -480,11 +482,15 @@ export function renderLivePage() {
       gap: 8px 12px;
       color: var(--muted);
       font-size: 14px;
+      min-width: 0;
     }
     .kv strong {
       color: var(--text);
       font-weight: 500;
-      overflow-wrap: anywhere;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .status {
       display: inline-flex;
@@ -504,19 +510,20 @@ export function renderLivePage() {
       animation: pulse 1.5s infinite;
     }
     .dump-summary {
-      display: flex;
-      justify-content: space-between;
+      display: grid;
       gap: 8px;
       color: var(--muted);
       font-size: 12px;
       margin-top: -4px;
+      min-width: 0;
     }
     .dump-list {
       display: grid;
       gap: 6px;
-      max-height: 320px;
+      max-height: 176px;
       overflow: auto;
       padding-right: 4px;
+      min-width: 0;
     }
     .dump-list::-webkit-scrollbar { width: 8px; }
     .dump-list::-webkit-scrollbar-track {
@@ -534,6 +541,7 @@ export function renderLivePage() {
       border: 1px solid rgba(255, 255, 255, 0.06);
       display: grid;
       gap: 6px;
+      min-width: 0;
     }
     .dump-entry-head {
       display: flex;
@@ -542,11 +550,28 @@ export function renderLivePage() {
       color: var(--text);
       font-size: 12px;
       font-weight: 600;
+      min-width: 0;
     }
     .dump-entry-sub {
       color: var(--muted);
       font-size: 11px;
       line-height: 1.3;
+      overflow-wrap: anywhere;
+    }
+    .compact-text {
+      display: block;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .dump-entry-sub.compact {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .dump-entry-sub.error {
+      white-space: normal;
       overflow-wrap: anywhere;
     }
     .dump-actions {
@@ -730,6 +755,9 @@ export function renderLivePage() {
         <h2>Dump History</h2>
         <div class="dump-summary" id="dumpSummaryText"></div>
         <div class="dump-list" id="dumpHistoryList"></div>
+        <h2>CPU Recordings</h2>
+        <div class="dump-summary" id="cpuProfileSummaryText"></div>
+        <div class="dump-list" id="cpuProfileHistoryList"></div>
       </div>
     </section>
   </div>
@@ -773,6 +801,42 @@ export function renderLivePage() {
     let lastNotificationSentAt = '';
     function setText(id, value) {
       document.getElementById(id).textContent = value === null || value === undefined || value === '' ? '-' : String(value);
+    }
+
+    function escapeHtml(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function compactMiddle(value, left, right) {
+      const text = value === null || value === undefined ? '' : String(value);
+      const keepLeft = left || 18;
+      const keepRight = right || 16;
+      if (!text) return '-';
+      if (text.length <= keepLeft + keepRight + 3) return text;
+      return text.slice(0, keepLeft) + '...' + text.slice(-keepRight);
+    }
+
+    function compactPath(value) {
+      const text = value === null || value === undefined ? '' : String(value);
+      if (!text) return '-';
+      const parts = text.split('/');
+      if (parts.length <= 3) return compactMiddle(text, 20, 20);
+      return compactMiddle('.../' + parts.slice(-2).join('/'), 18, 22);
+    }
+
+    function setCompactText(id, value, options) {
+      const node = document.getElementById(id);
+      if (!node) return;
+      const text = value === null || value === undefined || value === '' ? '-' : String(value);
+      const compact = text === '-'
+        ? '-'
+        : compactMiddle(text, options && options.left, options && options.right);
+      node.innerHTML = '<span class="compact-text" title="' + escapeHtml(text) + '">' + escapeHtml(compact) + '</span>';
     }
 
     function updateNote(value) {
@@ -1018,18 +1082,52 @@ export function renderLivePage() {
       });
     }
 
+    function timeAxisTicks(samples) {
+      if (!samples.length) return [];
+      const minTs = Number(samples[0].timestamp) || 0;
+      const maxTs = Number(samples[samples.length - 1].timestamp) || minTs;
+      const span = Math.max(maxTs - minTs, 0);
+      if (span <= 1) {
+        return [minTs];
+      }
+      const targetTickCount = 5;
+      const rawStep = span / Math.max(targetTickCount - 1, 1);
+      const candidates = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600];
+      let step = candidates[candidates.length - 1];
+      for (let index = 0; index < candidates.length; index += 1) {
+        if (rawStep <= candidates[index]) {
+          step = candidates[index];
+          break;
+        }
+      }
+      const start = Math.ceil(minTs / step) * step;
+      const ticks = [];
+      for (let tick = start; tick < maxTs; tick += step) {
+        if (tick > minTs && tick < maxTs) ticks.push(tick);
+      }
+      if (!ticks.length) {
+        return [minTs, maxTs];
+      }
+      if (ticks[0] - minTs > step * 0.45) ticks.unshift(minTs);
+      if (maxTs - ticks[ticks.length - 1] > step * 0.45) ticks.push(maxTs);
+      return ticks.slice(0, 6);
+    }
+
     function drawTimeAxis(ctx, left, top, width, height, samples) {
       if (!samples.length) return;
-      const tickCount = Math.min(5, samples.length);
+      const minTs = Number(samples[0].timestamp) || 0;
+      const maxTs = Number(samples[samples.length - 1].timestamp) || minTs;
+      const span = Math.max(maxTs - minTs, 1e-6);
+      const ticks = timeAxisTicks(samples);
       ctx.fillStyle = 'rgba(159,176,207,0.92)';
       ctx.font = '12px "IBM Plex Sans", sans-serif';
-      for (let index = 0; index < tickCount; index += 1) {
-        const sampleIndex = Math.round((index / Math.max(tickCount - 1, 1)) * (samples.length - 1));
-        const x = left + (sampleIndex / Math.max(samples.length - 1, 1)) * width;
-        const text = formatClock(samples[sampleIndex].timestamp);
+      ticks.forEach(function (tick) {
+        const ratio = Math.max(0, Math.min(1, (tick - minTs) / span));
+        const x = left + ratio * width;
+        const text = formatClock(tick);
         const metrics = ctx.measureText(text);
         ctx.fillText(text, Math.max(left, Math.min(left + width - metrics.width, x - metrics.width / 2)), top + height + 24);
-      }
+      });
     }
 
     function drawHover(ctx, sample, index, total, left, top, width, height) {
@@ -1352,10 +1450,52 @@ export function renderLivePage() {
         return;
       }
       document.getElementById('dumpHistoryList').innerHTML = safeHistory.map(function (entry) {
+        const fileName = entry.dump_hprof_name || basename(entry.dump_hprof_path);
+        const fullText = 'PID ' + (entry.pid || '-') + ' · ' + fileName;
         return '<div class="dump-entry">' +
           '<div class="dump-entry-head"><span>' + formatClock(entry.timestamp || entry.timestamp_iso) + '</span><span class="dump-tag">' + (entry.dump_type || '-') + '</span></div>' +
-          '<div class="dump-entry-sub">PID ' + (entry.pid || '-') + ' · ' + (entry.dump_hprof_name || basename(entry.dump_hprof_path)) + '</div>' +
+          '<div class="dump-entry-sub compact" title="' + escapeHtml(fullText) + '">' + escapeHtml('PID ' + (entry.pid || '-') + ' · ' + compactMiddle(fileName, 16, 18)) + '</div>' +
           '<div class="dump-actions"><a class="dump-link" href="' + entry.hprof_download_url + '" download>HPROF</a><a class="dump-link" href="' + entry.manifest_download_url + '" download>Manifest</a></div>' +
+          '</div>';
+      }).join('');
+    }
+
+    function renderCpuProfileHistory(history, exportDir) {
+      const safeHistory = history || [];
+      const summaryNode = document.getElementById('cpuProfileSummaryText');
+      if (summaryNode) {
+        if (safeHistory.length) {
+          const countText = 'Total ' + safeHistory.length;
+          if (exportDir) {
+            summaryNode.innerHTML = '<span>' + escapeHtml(countText) + '</span><span class="compact-text" title="' + escapeHtml(exportDir) + '">' + escapeHtml(compactPath(exportDir)) + '</span>';
+          } else {
+            summaryNode.textContent = countText;
+          }
+        } else if (exportDir) {
+          summaryNode.innerHTML = '<span class="compact-text" title="' + escapeHtml(exportDir) + '">' + escapeHtml(compactPath(exportDir)) + '</span>';
+        } else {
+          summaryNode.textContent = 'No recordings yet';
+        }
+      }
+      if (!safeHistory.length) {
+        document.getElementById('cpuProfileHistoryList').innerHTML = '<div class="dump-entry"><div class="dump-entry-sub">No recordings yet</div></div>';
+        return;
+      }
+      document.getElementById('cpuProfileHistoryList').innerHTML = safeHistory.map(function (entry) {
+        const durationText = entry.duration_sec !== null && entry.duration_sec !== undefined ? Number(entry.duration_sec).toFixed(1) + 's' : '-';
+        const fileName = entry.perf_data_name || basename(entry.perf_data_path);
+        const subText = 'PID ' + (entry.pid || '-') + ' · ' + durationText + ' · ' + fileName;
+        const actions = [
+          entry.firefox_profiler_url ? '<a class="dump-link" href="' + entry.firefox_profiler_url + '" target="_blank" rel="noopener noreferrer">Open</a>' : '',
+          entry.perf_data_download_url ? '<a class="dump-link" href="' + entry.perf_data_download_url + '" download>perf.data</a>' : '',
+          entry.gecko_profile_download_url ? '<a class="dump-link" href="' + entry.gecko_profile_download_url + '" download>Gecko</a>' : ''
+        ].filter(Boolean).join('');
+        const errorText = entry.gecko_profile_error ? '<div class="dump-entry-sub error">' + escapeHtml(entry.gecko_profile_error) + '</div>' : '';
+        return '<div class="dump-entry">' +
+          '<div class="dump-entry-head"><span>' + formatClock(entry.timestamp || entry.timestamp_iso) + '</span><span class="dump-tag">cpu</span></div>' +
+          '<div class="dump-entry-sub compact" title="' + escapeHtml(subText) + '">' + escapeHtml('PID ' + (entry.pid || '-') + ' · ' + durationText + ' · ' + compactMiddle(fileName, 16, 18)) + '</div>' +
+          errorText +
+          '<div class="dump-actions">' + actions + '</div>' +
           '</div>';
       }).join('');
     }
@@ -1368,10 +1508,14 @@ export function renderLivePage() {
       if (!dumpInFlight) setText('dumpStatusText', resolveDumpStatusText(currentPayload));
       setText('dumpTypeText', dumpSample && dumpSample.dump_type ? dumpSample.dump_type : '-');
       setText('dumpTimeText', dumpSample ? formatClock(dumpSample.timestamp || dumpSample.timestamp_iso) : '-');
-      setText('dumpPathText', dumpSample ? (dumpSample.dump_hprof_name || basename(dumpSample.dump_hprof_path)) : '-');
-      setText('manifestPathText', dumpSample ? (dumpSample.dump_manifest_name || basename(dumpSample.dump_manifest_path)) : '-');
-      setText('dumpMessageText', currentPayload && currentPayload.dump_in_progress_message ? currentPayload.dump_in_progress_message : (manualDumpMessage || (currentPayload && currentPayload.manual_dump_reason) || '-'));
+      setCompactText('dumpPathText', dumpSample ? (dumpSample.dump_hprof_name || basename(dumpSample.dump_hprof_path)) : '-', { left: 16, right: 18 });
+      setCompactText('manifestPathText', dumpSample ? (dumpSample.dump_manifest_name || basename(dumpSample.dump_manifest_path)) : '-', { left: 16, right: 18 });
+      setCompactText('dumpMessageText', currentPayload && currentPayload.dump_in_progress_message ? currentPayload.dump_in_progress_message : (manualDumpMessage || (currentPayload && currentPayload.manual_dump_reason) || '-'), { left: 20, right: 12 });
       renderDumpHistory(currentPayload ? currentPayload.dump_history : []);
+      renderCpuProfileHistory(
+        currentPayload ? currentPayload.cpu_profile_history : [],
+        currentPayload ? currentPayload.cpu_profile_export_dir : ''
+      );
       setText('leakText', focusSample ? focusSample.leak_status : '-');
       setText('activitiesText', focusSample && focusSample.activities !== null && focusSample.activities !== undefined ? focusSample.activities : '-');
       setText('viewRootText', focusSample && focusSample.view_root_impl !== null && focusSample.view_root_impl !== undefined ? focusSample.view_root_impl : '-');
@@ -1445,7 +1589,7 @@ export function renderLivePage() {
         const response = await fetch('/api/dump', { method: 'POST', cache: 'no-store' });
         const payload = await response.json();
         if (!response.ok || !payload.ok) throw new Error(payload.error || 'manual dump failed');
-        manualDumpMessage = 'manual dump saved: ' + (payload.dump.dump_hprof_name || basename(payload.dump.dump_hprof_path));
+        manualDumpMessage = 'manual dump saved';
         const latestDumpKey = makeDumpKey(payload.dump);
         if (latestDumpKey) {
           lastSeenDumpKey = latestDumpKey;
@@ -1474,8 +1618,8 @@ export function renderLivePage() {
         if (!response.ok || !payload.ok) throw new Error(payload.error || 'cpu profile failed');
         if (inProgress) {
           cpuProfileMessage = payload.capture.gecko_profile_name
-            ? 'cpu profile ready: ' + payload.capture.gecko_profile_name
-            : 'cpu profile saved: ' + (payload.capture.perf_data_name || basename(payload.capture.perf_data_path));
+            ? 'cpu profile ready'
+            : 'cpu profile saved';
           await poll(true);
           if (payload.capture.firefox_profiler_url) {
             window.open(payload.capture.firefox_profiler_url, '_blank', 'noopener,noreferrer');

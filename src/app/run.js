@@ -4,12 +4,12 @@ import { AdbClient, AdbError } from '../adb/adb-client.js';
 import { HprofCapture } from '../capture/hprof-capture.js';
 import { createDumpHookRunner } from '../capture/dump-hook.js';
 import { createSimpleperfCapture } from '../capture/simpleperf-capture.js';
-import { jsonLine, sanitizePackageName } from '../core/format.js';
 import { sleep, timestampStamp } from '../core/time.js';
 import { buildLeakConfig, LeakJudge } from '../leak/leak-judge.js';
 import { exportReport } from '../report/report-html.js';
 import { PackageCollector } from '../sampling/package-collector.js';
 import { buildSample } from '../sampling/sample.js';
+import { createOutputLayout, ensureOutputLayout, resetPackageArtifacts } from '../storage/output-layout.js';
 import { SampleWriter } from '../storage/sample-writer.js';
 import { writeSessionMeta } from '../storage/session-meta.js';
 import { createRuntimeLogger } from '../storage/runtime-logger.js';
@@ -20,6 +20,21 @@ import { WebState } from '../web/web-state.js';
 export async function run({ packageName, options }) {
   const outputDir = path.resolve(String(options['output-dir']));
   await mkdir(outputDir, { recursive: true });
+  if (options['reset-output-dir']) {
+    await resetPackageArtifacts({
+      outputDir,
+      packageName,
+      leakDumpDir: String(options['leak-dump-dir'])
+    });
+  }
+  const stamp = timestampStamp();
+  const layout = createOutputLayout({
+    outputDir,
+    packageName,
+    stamp,
+    leakDumpDir: String(options['leak-dump-dir'])
+  });
+  await ensureOutputLayout(layout);
   const logger = await createRuntimeLogger({ outputDir, packageName });
   const adb = new AdbClient({ serial: options.serial });
   let writer = null;
@@ -35,18 +50,18 @@ export async function run({ packageName, options }) {
     let deviceInfo = await adb.deviceInfo();
     let javaHeapMaxMb = await resolveJavaHeapMaxMb(adb, options);
     let leakConfig = buildLeakConfig(options, javaHeapMaxMb);
-    const stamp = timestampStamp();
-    const packageStem = sanitizePackageName(packageName);
-    const outputPrefix = path.join(outputDir, `${packageStem}_${stamp}`);
-    const csvPath = `${outputPrefix}.csv`;
-    const metaPath = `${outputPrefix}.json`;
-    const reportPath = `${outputPrefix}_report.html`;
-    await writeSessionMeta(metaPath, {
+    const cpuProfileExportDir = layout.simpleperfPackageDir;
+    const csvPath = layout.sessionCsvPath;
+    const metaPath = layout.sessionMetaPath;
+    const reportPath = layout.sessionReportPath;
+    await writeSessionMeta(layout.sessionMetaPath, {
       package: packageName,
       interval_sec: Number(options.interval),
       pss_interval_sec: Number(options['pss-interval']),
       serial: options.serial || null,
       started_at: new Date().toISOString(),
+      output_dir: outputDir,
+      session_dir: layout.sessionDir,
       device: deviceInfo,
       leak_capture: leakConfig,
       runtime_log_path: logger.filePath
@@ -55,6 +70,15 @@ export async function run({ packageName, options }) {
       model: deviceInfo.model,
       android: deviceInfo.android,
       serial: deviceInfo.serial
+    });
+    await logger.info('输出目录已配置', {
+      artifacts_root_dir: outputDir,
+      session_dir: layout.sessionDir,
+      cpu_profile_export_dir: cpuProfileExportDir,
+      hprof_export_dir: layout.capturesPackageDir,
+      csv_path: csvPath,
+      meta_path: metaPath,
+      report_path: reportPath
     });
 
     writer = await SampleWriter.open(csvPath);
@@ -96,7 +120,8 @@ export async function run({ packageName, options }) {
           logger,
           dumpHook,
           simpleperfCapture,
-          webBaseUrl: webUrlBase(options)
+          webBaseUrl: webUrlBase(options),
+          cpuProfileExportDir
         })
       : null;
     let activeDeviceIdentity = deviceIdentity(deviceInfo);
@@ -118,7 +143,9 @@ export async function run({ packageName, options }) {
       deviceInfo,
       mode: options.mode,
       runtimeLogPath: logger.filePath,
-      webUrl
+      sessionDir: layout.sessionDir,
+      webUrl,
+      cpuProfileExportDir: cpuProfileExportDir
     });
 
     let prev = await collector.snapshot();
@@ -127,8 +154,8 @@ export async function run({ packageName, options }) {
     while (!stop.stopped) {
       try {
         await sleep(Math.max(50, Number(options.interval) * 1000));
-        const curr = await collector.snapshot();
         if (connectionStatus !== 'connected') {
+          await adb.ensureDevice();
           const nextDeviceInfo = await adb.deviceInfo();
           const nextIdentity = deviceIdentity(nextDeviceInfo);
           const deviceChanged = activeDeviceIdentity !== nextIdentity;
@@ -148,11 +175,11 @@ export async function run({ packageName, options }) {
           simpleperfCapture = options.mode === 'web'
             ? await createOptionalSimpleperfCapture({
                 adb,
-                packageName,
-                outputDir,
-                logger,
-                useRoot: !capabilities.profileable && capabilities.rooted
-              })
+          packageName,
+          outputDir,
+          logger,
+          useRoot: !capabilities.profileable && capabilities.rooted
+        })
             : null;
           capture = createCapture({ adb, packageName, outputDir, leakConfig, capabilities });
           webState?.updateRuntime({
@@ -161,7 +188,8 @@ export async function run({ packageName, options }) {
             capabilities,
             deviceInfo,
             appMaxJavaHeapMb: javaHeapMaxMb,
-            simpleperfCapture
+            simpleperfCapture,
+            cpuProfileExportDir
           });
           connectionStatus = 'connected';
           webState?.setConnectionState('connected', deviceChanged ? '已切换到另一台设备' : '设备已重新连接，采样已恢复');
@@ -170,9 +198,10 @@ export async function run({ packageName, options }) {
             model: deviceInfo.model,
             serial: deviceInfo.serial
           });
-          prev = curr;
+          prev = await collector.snapshot();
           continue;
         }
+        const curr = await collector.snapshot();
         let sample = buildSample(prev, curr, packageName);
         if (leakJudge) {
           sample = await processLeakSample(sample, leakJudge, capture, webState, dumpHook);
@@ -383,13 +412,17 @@ async function runDumpHook(dumpHook, { event, status, sample, dumpType, result, 
   });
 }
 
-function printStartupPanel({ packageName, deviceInfo, mode, runtimeLogPath, webUrl }) {
+function printStartupPanel({ packageName, deviceInfo, mode, runtimeLogPath, sessionDir, webUrl, cpuProfileExportDir }) {
   console.log('PerfSight | Android endurance monitoring');
   console.log(`App: ${packageName}`);
   console.log(`Device: ${deviceInfo.model} / ${deviceInfo.android} / ${deviceInfo.serial}`);
   console.log(`Mode: ${mode}`);
+  console.log(`Session: ${sessionDir}`);
   if (webUrl) {
     console.log(`UI: ${webUrl}`);
+  }
+  if (cpuProfileExportDir) {
+    console.log(`CPU recordings: ${cpuProfileExportDir}`);
   }
   console.log(`Log: ${runtimeLogPath}`);
   console.log('Support: wangkai39@xiaomi.com');

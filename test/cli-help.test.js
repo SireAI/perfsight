@@ -10,12 +10,13 @@ test('parseArgs recognizes help command and topic', () => {
 });
 
 test('parseArgs recognizes text subcommand', () => {
-  const parsed = parseArgs(['text', 'com.example.app', '--dump-hook', '/tmp/on-dump.sh']);
+  const parsed = parseArgs(['text', 'com.example.app', '--dump-hook', '/tmp/on-dump.sh', '--reset-output-dir']);
   assert.equal(parsed.command, 'text');
   assert.equal(parsed.helpTopic, '');
   assert.equal(parsed.packageName, 'com.example.app');
   assert.equal(parsed.options.mode, 'text');
   assert.equal(parsed.options['dump-hook'], '/tmp/on-dump.sh');
+  assert.equal(parsed.options['reset-output-dir'], true);
 });
 
 test('parseArgs recognizes web subcommand', () => {
@@ -64,6 +65,7 @@ test('printHelp shows text topic help', () => {
   printHelp({ write(chunk) { text += chunk; } }, 'text');
   assert.match(text, /Usage: perfsight text <package> \[options\]/);
   assert.match(text, /Text mode prints live samples/);
+  assert.match(text, /--reset-output-dir/);
   assert.match(text, /--dump-hook <command>/);
   assert.doesNotMatch(text, /--no-export-report/);
 });
@@ -73,6 +75,7 @@ test('printHelp shows web topic help', () => {
   printHelp({ write(chunk) { text += chunk; } }, 'web');
   assert.match(text, /Usage: perfsight web <package> \[options\]/);
   assert.match(text, /--enable-leak-capture/);
+  assert.match(text, /--reset-output-dir/);
   assert.match(text, /--dump-hook <command>/);
   assert.doesNotMatch(text, /--simpleperf-duration-sec <sec>/);
   assert.doesNotMatch(text, /--simpleperf-path <path>/);

@@ -78,8 +78,18 @@ export function startWebServer({ host, port, state }) {
       send(response, 500, 'text/plain; charset=utf-8', String(error.stack || error));
     }
   });
-  return new Promise((resolve) => {
-    server.listen(port, host, () => resolve(server));
+  return new Promise((resolve, reject) => {
+    const handleError = (error) => {
+      server.off('listening', handleListening);
+      reject(error);
+    };
+    const handleListening = () => {
+      server.off('error', handleError);
+      resolve(server);
+    };
+    server.once('error', handleError);
+    server.once('listening', handleListening);
+    server.listen(port, host);
   });
 }
 

@@ -1,8 +1,7 @@
 #!/usr/bin/env node
-import { main } from '../src/cli/index.js';
+import { formatCliError, main } from '../src/cli/index.js';
 
 main(process.argv.slice(2)).catch((error) => {
-  const message = error && error.stack ? error.stack : String(error);
-  console.error(message);
+  console.error(formatCliError(error));
   process.exitCode = 1;
 });

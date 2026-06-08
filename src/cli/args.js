@@ -2,7 +2,8 @@ const BOOL_FLAGS = new Set([
   'help',
   'enable-leak-capture',
   'check-update',
-  'force'
+  'force',
+  'reset-output-dir'
 ]);
 
 const OPTION_DEFAULTS = {
@@ -95,6 +96,7 @@ Text-mode options:
   --interval <sec>                        CPU sample interval (default: 0.5)
   --pss-interval <sec>                    dumpsys meminfo refresh interval (default: 3)
   --output-dir <dir>                      Output directory (default: data)
+  --reset-output-dir                      Clear this package's existing artifacts under output-dir before run
   --serial <device-id>                    adb device serial
   --dump-hook <command>                   Run a script or command after dump completion
 
@@ -117,6 +119,7 @@ Web options:
   --host <host>                           Web bind host (default: 127.0.0.1)
   --port <port>                           Web bind port (default: 8765)
   --history-size <n>                      Web sample history size (default: 120)
+  --reset-output-dir                      Clear this package's existing artifacts under output-dir before run
   --dump-hook <command>                   Run a script or command after dump completion
 
 Run \`perfsight help leak-capture\` for optional leak detection options.
@@ -213,6 +216,7 @@ Common options:
   --interval <sec>                        CPU sample interval (default: 0.5)
   --pss-interval <sec>                    dumpsys meminfo refresh interval (default: 3)
   --output-dir <dir>                      Output directory (default: data)
+  --reset-output-dir                      Clear this package's existing artifacts under output-dir before run
   --serial <device-id>                    adb device serial
   --dump-hook <command>                   Run a script or command after dump completion
 

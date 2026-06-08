@@ -116,6 +116,7 @@ export class AdbClient {
   static isDeviceUnavailableError(error) {
     const message = String(error?.message || error).toLowerCase();
     return [
+      'adb device unavailable',
       'no adb device available',
       'no devices/emulators found',
       'device offline',

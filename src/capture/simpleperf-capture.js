@@ -17,6 +17,15 @@ export async function createSimpleperfCapture({
 }) {
   const command = await resolveDeviceSimpleperfCommand(adb);
   const geckoProfileConverter = await resolveGeckoProfileConverter();
+  await logger?.info('simpleperf 运行时已就绪', {
+    package: packageName,
+    device_command: command,
+    export_root_dir: path.join(outputDir, 'simpleperf', sanitizePackageName(packageName)),
+    use_root: useRoot,
+    gecko_converter_source: geckoProfileConverter?.source || '',
+    gecko_converter_script: geckoProfileConverter?.scriptPath || '',
+    gecko_converter_python: geckoProfileConverter?.pythonPath || ''
+  });
   return new SimpleperfCapture({
     adb,
     packageName,
@@ -88,6 +97,13 @@ class SimpleperfCapture {
     const remotePerfData = `/data/local/tmp/${fileStem}.perf.data`;
     const localPerfData = path.join(sessionDir, `${fileStem}.perf.data`);
     const geckoProfilePath = path.join(sessionDir, `${fileStem}.gecko-profile.json`);
+    await this.logger?.info('准备启动 simpleperf 录制', {
+      package: this.packageName,
+      pid,
+      session_dir: sessionDir,
+      local_perf_data_path: localPerfData,
+      local_gecko_profile_path: geckoProfilePath
+    });
     const startCommand = [
       'nohup',
       quote(this.command),
@@ -153,6 +169,13 @@ class SimpleperfCapture {
     const stoppedAtIso = new Date(stoppedAt * 1000).toISOString();
     let stopError = '';
     try {
+      await this.logger?.info('准备停止 simpleperf 录制', {
+        package: this.packageName,
+        pid: session.appPid,
+        device_pid: session.devicePid,
+        remote_output_path: session.remotePerfData,
+        local_output_path: session.localPerfData
+      });
       await this.shell(`kill -INT ${session.devicePid}`, { check: false });
       const exited = await this.waitForProcessExit(session.devicePid, 15000);
       if (!exited) {
@@ -165,7 +188,19 @@ class SimpleperfCapture {
       if (remoteSize <= 0) {
         throw new AdbError(`simpleperf produced empty file: ${session.remotePerfData}`);
       }
+      await this.logger?.info('simpleperf 录制文件已稳定，开始导出', {
+        package: this.packageName,
+        pid: session.appPid,
+        remote_output_path: session.remotePerfData,
+        remote_size: remoteSize
+      });
+      await this.ensureRemotePerfDataReadable(session.remotePerfData);
       await this.adb.pull(session.remotePerfData, session.localPerfData);
+      await this.logger?.info('simpleperf perf.data 已拉取到本地', {
+        package: this.packageName,
+        pid: session.appPid,
+        local_output_path: session.localPerfData
+      });
       await this.shell(`rm -f ${quote(session.remotePerfData)}`, { check: false });
       let geckoProfileError = '';
       if (this.geckoProfileConverter) {
@@ -186,6 +221,11 @@ class SimpleperfCapture {
         }
       } else {
         geckoProfileError = 'gecko profile converter unavailable';
+        await this.logger?.warn('Gecko profile 转换器不可用，将仅保留 perf.data', {
+          package: this.packageName,
+          pid: session.appPid,
+          perf_data_path: session.localPerfData
+        });
       }
       const durationSec = Math.max(0.1, Number((stoppedAt - session.startedAt).toFixed(3)));
       await this.logger?.info('simpleperf CPU profile 录制完成', {
@@ -228,6 +268,12 @@ class SimpleperfCapture {
     const session = this.activeSession;
     if (!session) return;
     this.activeSession = null;
+    await this.logger?.warn('simpleperf 录制已中止', {
+      package: this.packageName,
+      pid: session.appPid,
+      device_pid: session.devicePid,
+      remote_output_path: session.remotePerfData
+    });
     await this.shell(`kill -KILL ${session.devicePid}`, { check: false }).catch(() => {});
     await this.shell(`rm -f ${quote(session.remotePerfData)}`, { check: false }).catch(() => {});
   }
@@ -290,6 +336,11 @@ class SimpleperfCapture {
       await sleep(500);
     }
     return this.remoteFileSize(remotePath);
+  }
+
+  async ensureRemotePerfDataReadable(remotePath) {
+    if (!this.useRoot) return;
+    await this.shell(`chmod 0644 ${quote(remotePath)}`, { check: false });
   }
 }
 

@@ -97,7 +97,8 @@ test('WebState records CPU profile events with Firefox Profiler links', () => {
     deviceInfo: {},
     appMaxJavaHeapMb: null,
     simpleperfCapture: {},
-    webBaseUrl: 'http://127.0.0.1:8877'
+    webBaseUrl: 'http://127.0.0.1:8877',
+    cpuProfileExportDir: '/tmp/simpleperf/com.example.app'
   });
 
   const event = state.recordCpuProfile(sample, {
@@ -113,6 +114,7 @@ test('WebState records CPU profile events with Firefox Profiler links', () => {
     event.firefox_profiler_url,
     'https://profiler.firefox.com/from-url/http%3A%2F%2F127.0.0.1%3A8877%2Fdownloads%2Fcpu-profile%2F1%2Fgecko-profile'
   );
+  assert.equal(state.payload().cpu_profile_export_dir, '/tmp/simpleperf/com.example.app');
   assert.deepEqual(state.findCpuProfile(1), event);
 });
 
